@@ -1,71 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Stock Market Simulator</title>
   <style>
     :root {
-      --bg: #121212;
-      --card-bg: #1e1e1e;
-      --text: #e0e0e0;
-      --gain: #4caf50;
-      --loss: #f44336;
-      --accent: #2196f3;
+      --bg: #121212; --card-bg: #1e1e1e;
+      --text: #e0e0e0;  --gain: #4caf50;
+      --loss: #f44336;  --accent: #2196f3;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       background: var(--bg);
       color: var(--text);
       font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
+      display: flex; flex-direction: column;
       min-height: 100vh;
     }
     header, footer {
-      text-align: center;
-      padding: 1rem;
+      text-align: center; padding: 1rem;
       background: var(--card-bg);
     }
     header h1 { font-size: 1.8rem; }
+    #time {
+      text-align: center; margin: 0.5rem 0;
+      font-size: 1.2rem;
+    }
     .market {
-      flex: 1;
-      display: flex;
-      gap: 1rem;
+      flex: 1; display: flex; gap: 1rem;
       padding: 1rem;
     }
     .stocks, .portfolio {
       background: var(--card-bg);
-      border-radius: 8px;
-      padding: 1rem;
-      flex: 1;
-      overflow-y: auto;
+      border-radius: 8px; padding: 1rem;
+      flex: 1; overflow-y: auto;
     }
     .stock-card, .holding {
-      background: #2a2a2a;
-      margin-bottom: 1rem;
-      border-radius: 6px;
-      padding: 0.8rem;
-      display: flex;
-      justify-content: space-between;
+      background: #2a2a2a; margin-bottom: 1rem;
+      border-radius: 6px; padding: 0.8rem;
+      display: flex; justify-content: space-between;
       align-items: center;
     }
-    .stock-info {
-      display: flex;
-      flex-direction: column;
-    }
+    .stock-info { display: flex; flex-direction: column; }
     .stock-symbol { font-weight: bold; font-size: 1.1rem; }
     .stock-price { font-size: 1rem; }
     .btn {
-      padding: 0.4rem 0.8rem;
-      border: none;
-      border-radius: 4px;
-      background: var(--accent);
-      color: white;
-      cursor: pointer;
+      padding: 0.4rem 0.8rem; border: none;
+      border-radius: 4px; background: var(--accent);
+      color: white; cursor: pointer;
       transition: background 0.2s;
     }
-    .btn:hover { background: #1976d2; }
+    .btn:hover:not(:disabled) { background: #1976d2; }
+    .btn:disabled {
+      background: #555; cursor: not-allowed; opacity: 0.6;
+    }
     .gain { color: var(--gain); }
     .loss { color: var(--loss); }
     @media (max-width: 768px) {
@@ -77,108 +66,116 @@
   <header>
     <h1>📈 Stock Market Simulator</h1>
   </header>
-
+  <div id="time"></div>
   <div class="market">
     <div class="stocks">
       <h2>Market</h2>
-      <!-- Stock cards will be injected here -->
     </div>
     <div class="portfolio">
       <h2>Your Portfolio</h2>
       <p>Cash: $<span id="cash">10000</span></p>
-      <!-- Holdings will be injected here -->
       <p>Total Value: $<span id="total">10000</span></p>
     </div>
   </div>
-
-  <footer>
-    &copy; 2025 Simulator Inc.
-  </footer>
+  <footer>&copy; 2025 Simulator Inc.</footer>
 
   <script>
     const stockList = [
-      { symbol: 'AAPL', name: 'Apple Inc.', price: 150 },
-      { symbol: 'GOOG', name: 'Alphabet Inc.', price: 2800 },
-      { symbol: 'TSLA', name: 'Tesla, Inc.', price: 700 },
-      { symbol: 'AMZN', name: 'Amazon.com, Inc.', price: 3400 }
+      { symbol:'AAPL', name:'Apple Inc.', price:150 },
+      { symbol:'GOOG', name:'Alphabet Inc.', price:2800 },
+      { symbol:'TSLA', name:'Tesla, Inc.', price:700 },
+      { symbol:'AMZN', name:'Amazon.com, Inc.', price:3400 }
     ];
     let cash = 10000;
     let portfolio = {};
+    let simulationTime = new Date(); // start now
 
-    function getRandomDelta() {
-      // ±5% change
-      return (Math.random() * 0.1 - 0.05);
+    function formatTime(date) {
+      return date.toLocaleString();
+    }
+
+    function isMarketOpen(date) {
+      const day = date.getDay(); // 0=Sun … 6=Sat
+      const h = date.getHours(), m = date.getMinutes();
+      const open = (h > 9 || (h===9 && m>=30));
+      const close = (h < 16 || (h===16 && m===0));
+      return day>=1 && day<=5 && open && close;
     }
 
     function updatePrices() {
-      stockList.forEach(s => {
-        const delta = s.price * getRandomDelta();
-        s.price = Math.max(1, +(s.price + delta).toFixed(2));
-      });
-      renderStocks();
+      // advance simulation by 1 hour
+      simulationTime.setHours(simulationTime.getHours()+1);
+      document.getElementById('time').textContent = formatTime(simulationTime);
+
+      const marketOpen = isMarketOpen(simulationTime);
+      if (marketOpen) {
+        stockList.forEach(s => {
+          const delta = s.price * (Math.random()*0.1 - 0.05);
+          s.price = Math.max(1, +(s.price+delta).toFixed(2));
+        });
+      }
+      renderStocks(marketOpen);
       renderPortfolio();
     }
 
-    function renderStocks() {
+    function renderStocks(marketOpen) {
       const container = document.querySelector('.stocks');
       container.innerHTML = '<h2>Market</h2>';
       stockList.forEach(s => {
-        const change = ((s.price - (s.prevPrice||s.price)) / (s.prevPrice||s.price) * 100).toFixed(2);
+        const change = s.prevPrice
+          ? ((s.price - s.prevPrice)/s.prevPrice*100).toFixed(2)
+          : '0.00';
         s.prevPrice = s.price;
         const card = document.createElement('div');
         card.className = 'stock-card';
         card.innerHTML = `
           <div class="stock-info">
             <span class="stock-symbol">${s.symbol}</span>
-            <span class="stock-price">$${s.price.toFixed(2)}
+            <span class="stock-price">
+              $${s.price.toFixed(2)}
               <span class="${change>=0?'gain':'loss'}">(${change}%)</span>
             </span>
           </div>
-          <button class="btn" onclick="buyStock('${s.symbol}')">Buy</button>
+          <button class="btn">Buy</button>
         `;
+        const btn = card.querySelector('button');
+        btn.onclick = () => buyStock(s.symbol);
+        btn.disabled = !marketOpen || cash < s.price;
         container.appendChild(card);
       });
     }
 
     function buyStock(symbol) {
-      const stock = stockList.find(s => s.symbol === symbol);
-      if (cash < stock.price) {
-        alert('Not enough cash!');
-        return;
-      }
+      const stock = stockList.find(s => s.symbol===symbol);
+      if (cash < stock.price) return;
       cash -= stock.price;
-      portfolio[symbol] = (portfolio[symbol] || 0) + 1;
+      portfolio[symbol] = (portfolio[symbol]||0) + 1;
       renderPortfolio();
     }
 
     function renderPortfolio() {
       document.getElementById('cash').textContent = cash.toFixed(2);
       const container = document.querySelector('.portfolio');
-      container.innerHTML = `
-        <h2>Your Portfolio</h2>
-        <p>Cash: $<span id="cash">${cash.toFixed(2)}</span></p>
-      `;
       let total = cash;
+      container.querySelectorAll('.holding').forEach(n=>n.remove());
       for (let sym in portfolio) {
         const qty = portfolio[sym];
-        const stock = stockList.find(s => s.symbol === sym);
-        const value = +(qty * stock.price).toFixed(2);
+        const stock = stockList.find(s=>s.symbol===sym);
+        const value = +(qty*stock.price).toFixed(2);
         total += value;
         const div = document.createElement('div');
         div.className = 'holding';
-        div.innerHTML = `
-          <span>${sym} × ${qty}</span>
-          <span>$${value.toFixed(2)}</span>
-        `;
+        div.innerHTML = `<span>${sym} × ${qty}</span><span>$${value}</span>`;
         container.appendChild(div);
       }
-      container.innerHTML += `<p>Total Value: $<span id="total">${total.toFixed(2)}</span></p>`;
+      document.getElementById('total').textContent = total.toFixed(2);
     }
 
-    // Initialize
-    renderStocks();
+    // initialize
+    document.getElementById('time').textContent = formatTime(simulationTime);
+    renderStocks(isMarketOpen(simulationTime));
     renderPortfolio();
-    setInterval(updatePrices, 1000);
+    setInterval(updatePrices, 60000);
   </script>
 </body>
 </html>
