@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Real-Time Stock Simulator</title>
   <style>
     :root {
@@ -93,54 +93,80 @@
   </div>
 
   <script>
-    // --- State & Data ---
+    // --- Data & State ---
     const stocks = [
-      { symbol:'AAPL', price:150, history:[] },
-      { symbol:'GOOG', price:2800, history:[] },
-      { symbol:'TSLA', price:700, history:[] },
-      { symbol:'AMZN', price:3400, history:[] }
+      {symbol:'AAPL',price:150,history:[]},
+      {symbol:'MSFT',price:260,history:[]},
+      {symbol:'NVDA',price:400,history:[]},
+      {symbol:'AMZN',price:3300,history:[]},
+      {symbol:'GOOG',price:2700,history:[]},
+      {symbol:'META',price:330,history:[]},
+      {symbol:'GOOGL',price:2700,history:[]},
+      {symbol:'BRK.B',price:300,history:[]},
+      {symbol:'AVGO',price:600,history:[]},
+      {symbol:'TSLA',price:700,history:[]},
+      {symbol:'LLY',price:550,history:[]},
+      {symbol:'JPM',price:140,history:[]},
+      {symbol:'WMT',price:145,history:[]},
+      {symbol:'V',price:230,history:[]},
+      {symbol:'XOM',price:100,history:[]},
+      {symbol:'MA',price:350,history:[]},
+      {symbol:'UNH',price:490,history:[]},
+      {symbol:'BAC',price:36,history:[]},
+      {symbol:'HD',price:330,history:[]},
+      {symbol:'ORCL',price:90,history:[]},
+      {symbol:'INTC',price:35,history:[]},
+      {symbol:'VZ',price:35,history:[]},
+      {symbol:'NKE',price:125,history:[]},
+      {symbol:'PG',price:150,history:[]},
+      {symbol:'KO',price:60,history:[]},
+      {symbol:'CSCO',price:50,history:[]},
+      {symbol:'CVX',price:115,history:[]},
+      {symbol:'PFE',price:42,history:[]},
+      {symbol:'NFLX',price:500,history:[]},
+      {symbol:'DIS',price:100,history:[]}
     ];
     let cash = 10000, portfolio = {};
 
     // --- Real-Time Clock ---
     function updateClock(){
       document.getElementById('realClock').textContent =
-        'Real Time: '+new Date().toLocaleTimeString();
+        'Real Time: ' + new Date().toLocaleTimeString();
     }
 
-    // --- Market Hours Check ---
+    // --- Market Hours Check (Mon–Fri, 9:00–20:00 CST) ---
     function isMarketOpen(d){
-      const day=d.getDay(), h=d.getHours(), m=d.getMinutes();
-      return day>=1 && day<=5 &&
-        ((h>9||(h===9&&m>=30)) &&
-         (h<16||(h===16&&m===0)));
+      const day = d.getDay(), h = d.getHours();
+      return day >= 1 && day <= 5 && h >= 9 && h < 20;
     }
 
-    // --- Price Update Tick (1h per 3s) ---
+    // --- Price Tick (1h per 5s) ---
     function runMarket(){
-      const now=new Date();
-      if(isMarketOpen(now)){
+      const now = new Date();
+      if (isMarketOpen(now)) {
         stocks.forEach(s => {
           s.history.push(s.price);
-          const r=Math.random(), delta =
-            r<0.01 ? s.price*(Math.random()*1-0.5) :
-            r<0.05 ? s.price*(Math.random()*0.4-0.2) :
-                     s.price*(Math.random()*0.1-0.05);
-          s.price = Math.max(1, +(s.price+delta).toFixed(2));
+          const r = Math.random();
+          const delta = r < 0.01
+            ? s.price * (Math.random()*1 - 0.5)
+            : r < 0.05
+              ? s.price * (Math.random()*0.4 - 0.2)
+              : s.price * (Math.random()*0.1 - 0.05);
+          s.price = Math.max(1, +(s.price + delta).toFixed(2));
         });
       }
       renderMarket(); renderPortfolio();
     }
 
-    // --- Render Market Cards ---
+    // --- Render Market ---
     function renderMarket(){
-      const ct=document.querySelector('.stocks');
-      ct.innerHTML='<h2>Market</h2>';
+      const ct = document.querySelector('.stocks');
+      ct.innerHTML = '<h2>Market</h2>';
       stocks.forEach(s => {
-        const last = s.history.length ? s.history[s.history.length-1] : s.price;
-        const ch = ((s.price-last)/last*100).toFixed(2);
-        const card=document.createElement('div'); card.className='stock-card';
-        card.innerHTML=`
+        const prev = s.history.length ? s.history[s.history.length-1] : s.price;
+        const ch = ((s.price - prev)/prev*100).toFixed(2);
+        const card = document.createElement('div'); card.className = 'stock-card';
+        card.innerHTML = `
           <div class="stock-info">
             <span>${s.symbol}</span>
             <span>$${s.price.toFixed(2)}
@@ -152,95 +178,97 @@
             <button class="btn sell">Sell</button>
             <button class="btn detail">Details</button>
           </div>`;
-        const buy=card.querySelector('.buy'),
-              sell=card.querySelector('.sell'),
-              det=card.querySelector('.detail');
-        buy.onclick = ()=>trade(s.symbol,1);
-        sell.onclick=()=>trade(s.symbol,-1);
-        det.onclick = ()=>openDetail(s.symbol);
-        buy.disabled  = cash < s.price || !isMarketOpen(new Date());
+        const buy = card.querySelector('.buy'),
+              sell = card.querySelector('.sell'),
+              det = card.querySelector('.detail');
+        buy.onclick  = () => trade(s.symbol,  1);
+        sell.onclick = () => trade(s.symbol, -1);
+        det.onclick  = () => openDetail(s.symbol);
+        buy.disabled  = cash < s.price    || !isMarketOpen(new Date());
         sell.disabled = !(portfolio[s.symbol]>0) || !isMarketOpen(new Date());
         ct.appendChild(card);
       });
     }
 
-    // --- Trade Logic ---
+    // --- Trade Logic (5% sell tax) ---
     function trade(sym, qty){
-      const stk=stocks.find(x=>x.symbol===sym);
-      if(qty>0 && cash>=stk.price){
-        cash-=stk.price; portfolio[sym]=(portfolio[sym]||0)+1;
+      const stk = stocks.find(x => x.symbol === sym);
+      if (qty > 0 && cash >= stk.price) {
+        cash -= stk.price;
+        portfolio[sym] = (portfolio[sym]||0) + 1;
       }
-      if(qty<0 && portfolio[sym]>0){
-        cash+=stk.price*0.95; portfolio[sym]--;
+      if (qty < 0 && portfolio[sym] > 0) {
+        cash += stk.price * 0.95;
+        portfolio[sym]--;
       }
       renderMarket(); renderPortfolio();
     }
 
-    // --- Portfolio & Chart ---
-    const pCtx=document.getElementById('portfolioChart').getContext('2d');
-    const pChart=new Chart(pCtx,{
+    // --- Portfolio & Chart.js Setup ---
+    const pCtx = document.getElementById('portfolioChart').getContext('2d');
+    const pChart = new Chart(pCtx, {
       type:'line',
       data:{ labels:[], datasets:[{
         label:'Portfolio Value', data:[], fill:false, tension:0.1
       }]},
       options:{ plugins:{ zoom:{
         zoom:{ wheel:{enabled:true}, pinch:{enabled:true}, mode:'x' },
-        pan:{enabled:true, mode:'x'}
+        pan:{ enabled:true, mode:'x' }
       } } }
     });
     function renderPortfolio(){
-      document.getElementById('cash').textContent=cash.toFixed(2);
-      const hd=document.getElementById('holdings'); hd.innerHTML='';
-      let total=cash;
-      for(const sym in portfolio){
-        const qty=portfolio[sym], st=stocks.find(x=>x.symbol===sym);
-        const val=qty*st.price; total+=val;
-        const row=document.createElement('div'); row.className='holding';
-        row.innerHTML=`<span>${sym}×${qty}</span><span>$${val.toFixed(2)}</span>`;
+      document.getElementById('cash').textContent = cash.toFixed(2);
+      const hd = document.getElementById('holdings'); hd.innerHTML = '';
+      let total = cash;
+      for (let sym in portfolio) {
+        const qty = portfolio[sym], st = stocks.find(x=>x.symbol===sym);
+        const val = qty * st.price; total += val;
+        const row = document.createElement('div'); row.className = 'holding';
+        row.innerHTML = `<span>${sym}×${qty}</span><span>$${val.toFixed(2)}</span>`;
         hd.appendChild(row);
       }
-      document.getElementById('total').textContent=total.toFixed(2);
-      // update chart
+      document.getElementById('total').textContent = total.toFixed(2);
       pChart.data.labels.push(new Date().toLocaleTimeString());
       pChart.data.datasets[0].data.push(total.toFixed(2));
       pChart.update();
     }
 
     // --- Detail Modal & Forecast ---
-    const modal=document.getElementById('modal');
-    const dCtx=document.getElementById('detailChart').getContext('2d');
+    const modal = document.getElementById('modal');
+    const dCtx = document.getElementById('detailChart').getContext('2d');
     let dChart;
     function openDetail(sym){
-      const st=stocks.find(s=>s.symbol===sym);
-      document.getElementById('currentPrice').textContent=st.price.toFixed(2);
-      const hist=st.history.slice(-5);
-      const sma=hist.reduce((a,b)=>a+b,0)/hist.length;
-      const pred=(sma*(1+(Math.random()*0.1-0.05))).toFixed(2);
-      document.getElementById('predPrice').textContent=pred;
-      if(dChart) dChart.destroy();
-      dChart=new Chart(dCtx,{ type:'line',
+      const st = stocks.find(x=>x.symbol===sym);
+      document.getElementById('currentPrice').textContent = st.price.toFixed(2);
+      const hist = st.history.slice(-5);
+      const sma = hist.reduce((a,b)=>a+b,0)/hist.length;
+      const pred = (sma * (1 + (Math.random()*0.1-0.05))).toFixed(2);
+      document.getElementById('predPrice').textContent = pred;
+      if (dChart) dChart.destroy();
+      dChart = new Chart(dCtx, {
+        type:'line',
         data:{ labels:hist.map((_,i)=>`-${5-i}h`),
           datasets:[{ label:sym, data:[...hist,pred], fill:false, tension:0.1 }]
         },
         options:{ plugins:{ zoom:{
           zoom:{ wheel:{enabled:true}, pinch:{enabled:true}, mode:'x' },
-          pan:{enabled:true, mode:'x'}
+          pan:{ enabled:true, mode:'x' }
         } } }
       });
-      modal.style.display='block';
+      modal.style.display = 'block';
     }
     document.getElementById('closeModal')
-      .onclick = ()=> modal.style.display='none';
+      .onclick = () => modal.style.display = 'none';
     document.getElementById('togglePortfolio')
-      .onclick = ()=> {
-        const el=document.getElementById('portfolioChart').parentNode;
+      .onclick = () => {
+        const el = document.getElementById('portfolioChart').parentNode;
         el.style.display = el.style.display==='none'?'block':'none';
       };
 
-    // --- Init ---
+    // --- Initialization ---
     updateClock(); setInterval(updateClock, 1000);
     renderMarket(); renderPortfolio();
-    setInterval(runMarket, 3000);  // ← now every 3 seconds
+    setInterval(runMarket, 5000);
   </script>
 </body>
 </html>
