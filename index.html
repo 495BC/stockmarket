@@ -116,7 +116,7 @@
          (h<16||(h===16&&m===0)));
     }
 
-    // --- Price Update Tick (1h per 10s) ---
+    // --- Price Update Tick (1h per 3s) ---
     function runMarket(){
       const now=new Date();
       if(isMarketOpen(now)){
@@ -240,7 +240,7 @@
     // --- Init ---
     updateClock(); setInterval(updateClock, 1000);
     renderMarket(); renderPortfolio();
-    setInterval(runMarket, 10000);
+    setInterval(runMarket, 3000);  // ← now every 3 seconds
   </script>
 </body>
 </html>
